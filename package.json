@@ -1,11 +1,7 @@
 {
-  "name": "react-google-apps-script",
-  "version": "2.1.0",
-  "description": "Starter project for using React with Google Apps Script",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/enuchi/React-Google-Apps-Script.git"
-  },
+  "name": "gas-line-notify-demo",
+  "version": "0.0.1",
+  "description": "Use Google Apps Script to send line notify",
   "scripts": {
     "test:integration": "jest --forceExit test/local-development.test",
     "test:integration:extended": "cross-env IS_EXTENDED=true jest --forceExit test/local-development.test",
@@ -25,14 +21,11 @@
     "google",
     "apps",
     "script",
-    "sheets"
+    "sheets",
+    "line"
   ],
-  "author": "Elisha Nuchi",
+  "author": "Mirochiu",
   "license": "MIT",
-  "engines": {
-    "node": ">=10.0.0",
-    "npm": ">=6.0.0"
-  },
   "dependencies": {
     "prop-types": "^15.8.1",
     "react": "^18.2.0",
