@@ -8,11 +8,12 @@
     "login": "clasp login",
     "setup": "rimraf .clasp.json && mkdirp dist && clasp create --type sheets --title \"My React Project\" --rootDir ./dist && mv ./dist/.clasp.json ./.clasp.json && rimraf dist",
     "open": "clasp open --addon",
+    "web": "npx clasp open --webapp --deploymentId $(jq -r .deployId .clasp.json)",
     "setup:https": "mkdirp certs && mkcert -key-file ./certs/key.pem -cert-file ./certs/cert.pem localhost 127.0.0.1",
     "build:dev": "cross-env NODE_ENV=development webpack",
     "build": "cross-env NODE_ENV=production webpack",
-    "deploy:dev": "rimraf dist && npm run build:dev && npx clasp push",
-    "deploy": "rimraf dist && npm run build && npx clasp push",
+    "deploy:dev": "rimraf dist && npm run build:dev && npx clasp push && npx clasp deploy --deploymentId $(jq -r .deployId .clasp.json)",
+    "deploy": "rimraf dist && npm run build && npx clasp push && npx clasp deploy --deploymentId $(jq -r .deployId .clasp.json)",
     "serve": "cross-env NODE_ENV=development webpack serve",
     "start": "npm run deploy:dev && npm run serve"
   },
@@ -31,7 +32,8 @@
     "react": "^18.2.0",
     "react-bootstrap": "^2.4.0",
     "react-dom": "^18.2.0",
-    "react-transition-group": "^4.4.2"
+    "react-transition-group": "^4.4.2",
+    "sheetquery": "^1.4.0"
   },
   "devDependencies": {
     "@babel/cli": "^7.17.6",
