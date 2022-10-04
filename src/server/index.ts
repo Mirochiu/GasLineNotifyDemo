@@ -4,6 +4,8 @@ import { doGet, doPost, getServerUrl } from './web';
 
 import { notify } from './line';
 
+import { onTriggered } from './trigger';
+
 // Public functions must be exported as named exports
 export {
   getSheetsData,
@@ -17,4 +19,5 @@ export {
   notify,
   getConfig,
   setConfig,
+  onTriggered,
 };

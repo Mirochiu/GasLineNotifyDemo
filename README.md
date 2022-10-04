@@ -159,4 +159,161 @@
 ### 4. 加上儲存/讀取line通知的token功能(未完待續)
 ### 5. 加上傳送line的通知功能(未完待續)
 ### 6. 修改界面(未完待續)
-### 6. 修正彈跳視窗方式與動畫(未完待續)
+### 7. 修正彈跳視窗方式與動畫(未完待續)
+
+## 製作股票收盤自動LINE通知
+
+#### 新增觸發處理函數並設定時間觸發條件
+
+先寫上觸發用的函數onTriggered,我們直接把onTriggered接上log
+`src/server/trigger.js`
+```javascript
+import { log } from './sheets';
+const onTriggered = log;
+export { onTriggered };
+```
+
+在server加上對client開放的程式碼
+
+`src/server/index.ts`
+```javascript
+import { onTriggered } from './trigger';
+...
+export {
+...
+  onTriggered,
+};
+```
+
+自行開啟Apps Script網頁的專案界面>左邊選單"觸發條件">右下角"新增觸發條件">彈跳出"新增「Gas Line Notify Demo」觸發條件"的功能選單
+
+放置個10來分鐘,去開啟sheet名為紀錄檔"的工作表,可以看到有資料進來
+
+`2022/10/4 下午 1:29:21	{month=10.0, week-of-year=40.0, hour=5.0, year=2022.0, authMode=FULL, second=20.0, day-of-month=4.0, minute=29.0, day-of-week=2.0, timezone=UTC, triggerUid=12925279}
+`
+
+| 欄位名 | 意義 |
+| -------- | :-------: |
+|authMode	| 授權模式 |
+| triggerUid | 哪個觸發的 |
+| week-of-year | 第幾週 |
+| timezone | 時區 **(要使用)** |
+| year | 幾年(西元) |
+| month | 幾月(1月給1) |
+| day-of-month | 幾日(1號給1) |
+| day-of-week | 星期幾(週2就給2) **(要使用)** |
+| hour | 幾點 **(要使用)** |
+| minute | 幾分 |
+| second | 幾秒 |
+
+可以看到時區不是我們所在時區,所以小時也不正確,所以我們需要調整Apps Script的時區
+
+雖然我們可以由Apps Script專案頁面中調整時區，但是因為我們是透過clasp管理所以deploy上去的時候也會被覆蓋掉,所以正確的修改時區方法是改`appsscript.json`
+
+把原本的
+`"timeZone": "America/New_York",`
+改成
+`"timeZone": "Asia/Taipei",`
+
+我之前是這樣改完再發布後可得到+8的結果,不過這次寫都是給我UTC時間, 只好自己在程式裡面寫一下UTC的處理
+```javascript
+const trigger2obj = (e) => {
+  let tz = e['timezone'];
+  let hour = e['hour'];
+  let wday = e['day-of-week'];
+  if ('UTC' === tz) {
+    tz = 'UTC+8';
+    hour += 8;
+    if (hour > 24) {
+      hour -= 24;
+      wday += 1;
+      if (wday > 7) {
+        wday -= 7 + 1;
+      }
+    }
+  }
+  return {tz, hour, wday};
+}
+```
+上面這個trigger2obj函數的動作解釋:從e取出timezone,hour,day-of-week這幾個需要的資料;然後如果時區是UTC,也就是UTC+0,則做時區+8的調整;調整後的小時超過24就進位1天,因此wday就需要+1,如果wday大於7就是往下一週,所以要從1開始
+
+#### 取用開放資料
+
+然後網路上有政府有開放上市股票開盤/收盤的資料
+`https://data.gov.tw/dataset/11549`
+
+底下說有個說明文件"OAS標準之API說明文件網址 `https://openapi.twse.com.tw/v1/swagger.json`"
+開起來對一般人來說會是亂碼,實際上他是可用Swagger開啟的說明文檔
+
+從Swagger官方的[swagger-ui](https://swagger.io/tools/swagger-ui/)進去點`Live Demo`的按鈕，在上方欄內填入OAS標準之API說明文件網址
+`https://openapi.twse.com.tw/v1/swagger.json`
+
+不過跟我這裡要使用的資料一點關係都沒有(吐嘈:那幹麻還寫在上面...)
+
+我們要用的是csv的資料檔
+內容是下圖這樣
+![](./resource/open-data-csv-file-for-stock-price.png)
+
+
+| 欄位名稱 | 欄位idx | 意義 |
+| --- | :---: | :---: |
+| 證券代號 | 0 | 就是常說的股票號碼 |
+| 證券名稱 | 1 | 公司的股票名稱 |
+| 開盤價 | 4 | 開盤的第一筆撮合的成交價 |
+| 收盤價 | 7 | 收盤最後完成撮合的成交價 |
+
+就寫成了fetchAndFilterStockByNumber函數
+```javascript
+const fetchAndFilterStockByNumber = (list) => {
+  const res = UrlFetchApp
+    .fetch('https://www.twse.com.tw/exchangeReport/STOCK_DAY_ALL?response=open_data');
+  return Utilities
+    .parseCsv(res.getContentText())
+    .filter(r => list.includes(r[0]))
+    .map(r => ({
+      id:r[0],
+      name:r[1],
+      openPrice:r[4],
+      closePrice:r[7],
+    }));
+}
+```
+
+上面這個fetchAndFilterStockByNumber函數的動作解釋:使用Apps Script的`UrlFetchApp.fetch`服務可以幫我們抓取遠端伺服器的回應資料,不過有限制資料類型以及對方伺服器需要有允許跨佔存取,因為開放資料有允許所以我們就可以直接用;接著我們使用提供的`Utilities.parseCsv`工具將回應的csv文字檔案(`res.getContentText()`)轉成程式可讀的形式,也就是陣列形式;再透過filter作過濾,map轉換成人可閱讀的物件陣列
+
+#### 讀取設定並發送Line通知
+
+我們使用前面開發好的notify和getConfig就能夠將我們想要查的股票資訊透過Line通知送給我們自己。這裡設定wday星期一到星期五,14點的時候可以發送通知
+
+```javascript
+import { getConfig, log } from './sheets';
+import { notify } from './line';
+
+const onTriggered = (event) => {
+  const runAt = trigger2obj(event);
+  try {
+    if (runAt.wday>=6 || runAt.hour!=14) return;
+    const concerned = getConfig('ConcernedStocks').split(',');
+    const filtered = fetchAndFilterStockByNumber(concerned);
+    if (filtered.length !== concerned.length) {
+      log(`過濾後資料數量不吻合 f:${filtered.length} !== ${concerned.length} l:${concerned.join(',')}`);
+    }
+    const msg = filtered
+      .map(r => `${r.name}(${r.id}) 開盤:${r.openPrice} 收盤:${r.closePrice}`)
+      .join('\n');
+    log(msg);
+    notify(msg);
+  }
+  catch (e) {
+    log('發生錯誤', e);
+  }
+}
+```
+
+onTriggered的動作解釋:onTriggered會收到Apps Script發送的event資料,我們檢驗觸發時間,如果是定好的時間,就取出我們設定好的股票號碼列表,以逗號`,`分隔,例如0050,0056;透過fetchAndFilterStockByNumber幫我們取回資料,並依照前面的號碼列表過濾所需的收盤價;然後把資料組成我們人可以看懂的訊息:'公司名1(股票號碼1) 開盤:XX.XX 收盤:YY.YY\n公司名2(股票號碼2) 開盤:XX.XX 收盤:YY.YY...',然後透過notify將這個訊息用發送到個人的Line Notify
+
+收到的Line訊息會類似下圖這樣
+![](./resource/recv-stock-msg-in-line-notify.jpg)
+
+**這裡要注意的是** 我們需要在工作表'設定檔'將ConcernedStocks的val欄位設定格式為'純文字',不然設定股票號碼時,所輸入資料可能會自動跑去數字格式,導致onTriggered處理發生錯誤,或是找不到股票號碼的問題
+![](./resource/config-ConcernedStocks-format-in-sheet.png)
