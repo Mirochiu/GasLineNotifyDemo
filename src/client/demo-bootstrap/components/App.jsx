@@ -77,7 +77,7 @@ const App = () => {
     let element = document.getElementById('message');
     return serverFunctions.notify(element.value)
       .then((response) => {
-        if (response.status !== 200) {
+        if (response.code != 200) {
           throw new Error(response.text);
         }
         element.value = '';
