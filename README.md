@@ -1,340 +1,162 @@
-<p align="center">
-  <a href="" rel="noopener">
- <img width="400" src="https://i.imgur.com/83Y7bWN.png" alt="React & Google Apps Script logos"></a>
-</p>
-<p align="center"><i>
-  Update 2022: Now with support for React v17 and React Fast Refresh
-</i></p>
+# Line Notify Demo for GAS (Google Apps Script)
 
-<div align="center">
+## 紀錄一下開發過程
 
-[![Status](https://img.shields.io/badge/status-active-success.svg?color=46963a&style=flat-square)]()
-[![GitHub Issues](https://img.shields.io/github/issues/enuchi/React-Google-Apps-Script.svg?color=lightblue&style=flat-square)](https://github.com/enuchi/React-Google-Apps-Script/issues)
-[![GitHub Pull Requests](https://img.shields.io/github/issues-pr/enuchi/React-Google-Apps-Script.svg?color=blue&style=flat-square)](https://github.com/enuchi/React-Google-Apps-Script/pulls)
-[![License](https://img.shields.io/github/license/enuchi/React-Google-Apps-Script?color=pink&style=flat-square)](/LICENSE)
+1. 初始化專案
+1. 改設定
+1. 加上log,讓前/後端都可以紀錄log
+1. 加上儲存/讀取line通知的token功能
+1. 加上傳送line的通知功能
+1. 修改界面
+1. 修正彈跳視窗方式與動畫
 
-</div>
+### 1. 初始化專案與第一次部屬
 
-<p align="center"> 🚀 This is your boilerplate project for developing React apps inside Google Sheets, Docs, Forms and Slides projects. It's perfect for personal projects and for publishing complex add-ons in the G Suite Marketplace.
-</p>
+1. 拷貝 template
 
----
+   `git clone https://github.com/Mirochiu/React-Google-Apps-Script.git`
 
-## 📝 Table of Contents
+1. 登入
 
-- [About](#about)
-- [Install](#install)
-  - [Prerequisites](#prerequisites)
-  - [Getting started](#getting-started)
-- [Deploy](#deploy)
-- [[New!] Local Development](#local-development)
-  - [Using React DevTools](#dev-tools)
-- [Usage](#usage)
-  - [The included sample app](#the-included-sample-app)
-  - [[New!] Typescript](#new-typescript)
-  - [Adding packages](#adding-packages)
-  - [Styles](#styles)
-  - [Modifying scopes](#modifying-scopes)
-  - [Calling server-side Google Apps Script functions](#calling-server-side-google-apps-script-functions)
-  - [Autocomplete](#Autocomplete)
-- [Authors](#authors)
-- [Acknowledgments](#acknowledgement)
+   登入clasp,已有本機登入者請略過
+   `npm run login`
 
-<br/>
+1. 第一次部屬
 
-## 🔎 About <a name = "about"></a>
+  `npm run setup`
+  `npm run deploy`
 
-[Google Apps Script](https://developers.google.com/apps-script/overview) is Google's Javascript-based development platform for building applications and add-ons for Google Sheets, Docs, Forms and other Google Apps.
+  deploy後會顯示2個網址
+  1. 第一個是Sheet的網址
+  1. 第二個是Apps Script的網址,也就是這script的那個
+     `Created new Google Sheets Add-on script ....`
+     網址會像 `https://script.google.com/home/projects/18F.....eT/edit`
 
-You can add custom [user interfaces inside dialog windows](https://developers.google.com/apps-script/guides/html), but the platform is designed for simple HTML pages built with [templates](https://developers.google.com/apps-script/guides/html/templates) and [jQuery](https://developers.google.com/apps-script/guides/html/best-practices#take_advantage_of_jquery).
+  點擊右上角的部屬→選"新增部屬作業"
+  1. 左上齒輪→選取類型→選"網頁應用程式"
+  1. 右邊→誰可以存取→改"所有人"
+  1. 右下方→部屬按鈕
+  1. 點擊→授予存取權
 
-However, using this repo, it's easy to run [React](https://reactjs.org/) apps inside these dialogs, and build everything from small projects to advanced add-ons that can be published on the G Suite Marketplace.
+  之後的過程
+  1. 彈出google登入→選擇登入你的帳號
+  1. 彈出→"Google hasn’t verified this app"→點擊左下的小字"Advanced"→點擊下面小字"Go to My React Project (unsafe)"
+  1. 彈出→"My React Project wants to access your Google Account"→點擊"Allow"
+  1. 顯示→網頁應用程式→這裡會顯示你的{部屬ID}→這裡會顯示取得{你的Webapp網址}→點擊"完成"
 
-<p align="center">
- <img width="75%" src="https://i.imgur.com/BZvQ5ua.png" alt="React & Google Apps Script">
-</p>
+  - 部屬ID會類似: `AKf.....YoKA`
+  - 部屬網址會是對應的: `https://script.google.com/macros/s/AKf.....YoKA/exec`
 
-This repo is a boilerplate project that uses React and the same development tools that you use for building traditional websites, all inside Google Apps Script projects.
+   為了不讓網址一直改,所以我們要使用同一個{部屬ID}
 
-See below how to get started!
+### 2. 使用第一次獲得的部屬ID修改
 
-<br/>
+開啟package.json把你的{部屬ID}放到script裡頭
 
-## 🚜 Install <a name = "install"></a>
+在script底下的deploy
 
-These instructions will get you set up with a copy of the React project code on your local machine. It will also get you logged in to `clasp` so you can manage script projects from the command line.
+- 從本來的
 
-See [deploy](#deploy) for notes on how to deploy the project and see it live in a Google Spreadsheet.
+   `"deploy": "rimraf dist && npm run build && npx clasp push",`
 
-### Prerequisites <a name = "prerequisites"></a>
+- 改成
 
-- Make sure you're running at least [Node.js](https://nodejs.org/en/download/) v10 and `npm` v6.
+   `"deploy": "rimraf dist && npm run build && npx clasp push && npx clasp deploy --deploymentId {部屬ID}",`
 
-- You'll need to enable the Google Apps Script API. You can do that by visiting [script.google.com/home/usersettings](https://script.google.com/home/usersettings).
+然後在上面新增一個指令
 
-- [New!] To use live reload while developing, you'll need to serve your files locally using HTTPS. See [local development](#local-development) below for how to set up your local environment.
+`"web": "npx clasp open --webapp --deploymentId {部屬ID}",`
 
-### 🏁 Getting started <a name = "getting-started"></a>
+(本Repo已經調整過,是把部屬ID寫到`.clasp.json`裡頭的deployId)
 
-**1.** First, let's clone the repo and install the dependencies.
-
-```bash
-git clone https://github.com/enuchi/React-Google-Apps-Script.git
-cd React-Google-Apps-Script
-npm install
-```
-
-<img width="100%" src="https://i.imgur.com/EGSsCqO.gif">
-
-**2.** Next, we'll need to log in to [clasp](https://github.com/google/clasp), which lets us manage our Google Apps Script projects locally.
-
-```bash
-npm run login
-```
-
-<img width="100%" src="https://i.imgur.com/zKCgkMl.gif">
-
-**3.** Now let's run the setup script to create a New spreadsheet and script project from the command line.
-
-```bash
-npm run setup
-```
-
-<img width="100%" src="https://imgur.com/Zk2eHFV.gif">
-
-Alternatively, you can use an existing Google Spreadsheet and Script file instead of creating a new one.
-
-<details>
-  <summary>See instructions here for using an existing project.</summary>
-
-You will need to update the `.clasp.json` file in the root of this project with the following three key/value pairs (see .clasp.json.SAMPLE for reference):
-
+修改`appsscript.json`, 加上webapp的設定
 ```json
-{
-  "scriptId": "1PY037hPcy................................................",
-  "parentId": ["1Df30......................................."],
-  "rootDir": "./dist"
-}
-```
-
-- `scriptId`: Your existing script project's `scriptId`. You can find it by opening your spreadsheet, selecting **Tools > Script Editor** from the menubar, then **File > Project properties**, and it will be listed as "Script ID".
-
-- `parentId`: An array with a single string, the ID of the parent file (spreadsheet, doc, etc.) that the script project is bound to. You can get this ID from the url, where the format is usually `https://docs.google.com/spreadsheets/d/{id}/edit`. This allows you to run `npm run open` and open your file directly from the command line.
-
-- `rootDir`: This should always be `"./dist"`, i.e. the local build folder that is used to store project files.
-
-</details>
-
-Next, let's deploy the app so we can see it live in Google Spreadsheets.
-
-<br/>
-
-## 🚀 Deploy <a name = "deploy"></a>
-
-Run the deploy command. You may be prompted to update your manifest file. Type 'yes'.
-
-```bash
-npm run deploy
-```
-
-The deploy command will build all necessary files using production settings, including all server code (Google Apps Script code), client code (React bundle), and config files. All bundled files will be outputted to the `dist/` folder, then pushed to the Google Apps Script project.
-
-Now open Google Sheets and navigate to your new spreadsheet (e.g. the file "My React Project"). You can also run `npm run open`. Make sure to refresh the page if you already had it open. You will now see a new menu item appear containing your app!
-
-<img width="100%" src="https://i.imgur.com/W7UkEpv.gif">
-
-<br/>
-
-## 🎈 [NEW!] Local Development <a name="local-development"></a>
-
-We can develop our client-side React apps locally, and see our changes directly inside our Google Spreadsheet dialog window.
-
-<img width="100%" src="https://i.imgur.com/EsnOEHP.gif">
-
-There are two steps to getting started: installing a certificate (first time only), and running the start command.
-
-1. Generating a certificate for local development <a name = "generatingcerts"></a>
-
-   Install the mkcert package:
-
-   ```bash
-   # mac:
-   brew install mkcert
-
-   # windows:
-   choco install mkcert
-   ```
-
-   [More install options here.](https://github.com/FiloSottile/mkcert#installation)
-
-   Then run the mkcert install script:
-
-   ```bash
-   mkcert -install
-   ```
-
-   Create the certs in your repo:
-
-   ```
-   npm run setup:https
-   ```
-
-2. Now you're ready to start:
-   ```bash
-   npm run start
-   ```
-
-The start command will create and deploy a development build, and serve your local files.
-
-<img width="100%" src="https://imgur.com/uD4uZZK.gif">
-
-After running the start command, navigate to your spreadsheet and open one of the menu items. It should now be serving your local files. When you make and save changes to your React app, your app will reload instantly within the Google Spreadsheet, and have access to any server-side functions!
-
-<img width="100%" src="https://i.imgur.com/EsnOEHP.gif">
-
-Support for [Fast Refresh](https://github.com/pmmmwh/react-refresh-webpack-plugin) now means that only modified components are refreshed when files are changed, and state is not lost.
-
-<br/>
-
-### 🔍 Using React DevTools <a name="dev-tools"></a>
-
-React DevTools is a tool that lets you inspect the React component hierarchies during development.
-
-<details>
-  <summary>Instructions for installing React DevTools</summary>
-
-<br/>
-
-You will need to use the "standalone" version of React DevTools since our React App is running in an iframe ([more details here](https://github.com/facebook/react/tree/master/packages/react-devtools#usage-with-react-dom)).
-
-1. In your repo install the React DevTools package as a dev dependency:
-
-   ```bash
-   npm install -D react-devtools
-   ```
-
-2. In a new terminal window run `npx react-devtools` to launch the DevTools standalone app.
-
-3. Add `<script src="http://localhost:8097"></script>` to the top of your `<head>` in your React app, e.g. in the [index.html](https://github.com/enuchi/React-Google-Apps-Script/blob/e73e51e56e99903885ef8dd5525986f99038d8bf/src/client/dialog-demo-bootstrap/index.html) file in the sample Bootstrap app.
-
-4. Deploy your app (`npm run deploy:dev`) and you should see DevTools tool running and displaying your app hierarchy.
-
-   <img width="100%" src="https://user-images.githubusercontent.com/31550519/110273600-ee9eae80-7f9a-11eb-9796-31353b47dfa8.gif">
-
-5. Don't forget to remove the `<script>` tag before deploying to production.
-
-</details>
-
-<br/>
-
-## ⛏️ Usage <a name = "Usage"></a>
-
-### The included sample app
-
-The included sample app allows inserting/activating/deleting sheets through a simple HTML dialog, built with React. This simple app demonstrates how a React app can interact with the underlying Spreadsheet using Google Apps Script functions.
-
-The included sample app has three menu items for loading pages in various dialogs and sidebars.
-
-Two versions of the same app are provided with different styling: the first version uses vanilla React, and the second uses the popular bootstrap library (in this case, it uses [`react-bootstrap`](https://react-bootstrap.github.io/)). The bootstrap example also contains an example of a page built with typescript (see below)
-
-A third app just demonstrates how to load a sidebar dialog.
-
-Access the dialogs through the new menu item that appears. You may need to refresh the spreadsheet and approve the app's permissions the first time you use it.
-
-### [New!] Typescript
-
-This project now supports typescript!
-
-To use, simply use a typescript extension in either the client code (.ts/.tsx) or the server code (.ts), and your typescript file will compile to the proper format.
-
-For client-side code, see [FormInput.tsx in the Bootstrap demo](./src/client/dialog-demo-bootstrap/components/FormInput.tsx) for an example file. Note that it is okay to have a mix of javascript and typescript, as seen in the Bootstrap demo.
-
-To use typescript in server code, just change the file extension to .ts. The server-side code already utilizes type definitions for Google Apps Script APIs.
-
-A basic typescript configuration is used here, because after code is transpiled from typescript to javascript it is once again transpiled to code that is compatible with Google Apps Script. However, if you want more control over your setup you can modify the included [tsconfig.json file](./tsconfig.json).
-
-### Adding packages
-
-You can add packages to your client-side React app.
-
-For instance, install `react-transition-group` from npm:
-
-```bash
-npm install react-transition-group
-```
-
-Important: Since Google Apps Scripts projects don't let you easily reference external files, this project will bundle an entire app into one HTML file. This can result in large files if you are importing large packages. To help split up the files, you can grab a CDN url for your package and declare it in the [webpack file, here](./webpack.config.js#L157). If set up properly, this will add a script tag that will load packages from a CDN, reducing your bundle size.
-
-### Styles
-
-By default this project supports global CSS stylesheets. Make sure to import your stylesheet in your entrypoint file [index.js](./src/client/dialog-demo/index.js):
-
-```javascript
-import './styles.css';
-```
-
-Many external component libraries require a css stylesheet in order to work properly. You can import stylesheets in the HTML template, [as shown here with the Bootstrap stylesheet](./src/client/dialog-demo-bootstrap/index.html).
-
-The webpack.config.js file can also be modified to support scss and other style libraries.
-
-### Modifying scopes
-
-The included app only requires access to Google Spreadsheets and to loading dialog windows. If you make changes to the app's requirements, for instance, if you modify this project to work with Google Forms or Docs, make sure to edit the oauthScopes in the [appscript.json file](./appsscript.json).
-
-See https://developers.google.com/apps-script/manifest for information on the `appsscript.json` structure.
-
-### Calling server-side Google Apps Script functions
-
-This project uses the [gas-client](https://github.com/enuchi/gas-client) package to more easily call server-side functions using promises.
-
-```js
-// Google's documentation wants you to do this. Boo.
-google.script.run
-  .withSuccessHandler(response => doSomething(response))
-  .withFailureHandler(err => handleError(err))
-  .addSheet(sheetTitle);
-
-// Poof! With a little magic we can now do this:
-import Server from 'gas-client';
-const { serverFunctions } = new Server();
-
-// We now have access to all our server functions, which return promises!
-serverFunctions
-  .addSheet(sheetTitle)
-  .then(response => doSomething(response))
-  .catch(err => handleError(err));
-
-// Or we can equally use async/await style:
-async () => {
-  try {
-    const response = await serverFunctions.addSheet(sheetTitle);
-    doSomething(response);
-  } catch (err) {
-    handleError(err);
+  "webapp": {
+    "executeAs": "USER_DEPLOYING",
+    "access": "ANYONE_ANONYMOUS"
   }
-};
 ```
 
-In development, `gas-client` will interact with [the custom Webpack Dev Server package](https://github.com/enuchi/Google-Apps-Script-Webpack-Dev-Server) which allows us to run our app within the dialog window and still interact with Google Apps Script functions.
+若沒有加入webapp設定,會顯示成下面這樣
+![](./resource/trouble_on_appscript.json_without_webapp_section.png)
 
-### Autocomplete
+- 發布版本
 
-This project includes support for autocompletion and complete type definitions for Google Apps Script methods.
+   `npm run deploy`
 
-![autocomplete support](https://i.imgur.com/E7FLeTX.gif 'autocomplete')
+- 查看網頁
 
-All available methods from the Google Apps Script API are shown with full definitions and links to the official documentation, plus information on argument, return type and sample code.
+   `npm run web`
 
-<br/>
+- 本機界面測試
 
-## ✍️ Authors <a name = "authors"></a>
+   `npm run serve`
 
-- [@enuchi](https://github.com/enuchi) - Creator and maintainer
+- 遠端界面測試
 
-See the list of [contributors](https://github.com/enuchi/React-Google-Apps-Script/contributors) who participated in this project.
+   `npm run start`
 
-<br/>
+### 3. 使用按鈕寫入log
 
-## 🎉 Acknowledgements <a name = "acknowledgement"></a>
+1. 新增工作表
 
-Part of this project has been adapted from [apps-script-starter](https://github.com/labnol/apps-script-starter), a great starter project for server-side projects ([license here](https://github.com/labnol/apps-script-starter/blob/master/LICENSE)).
+    先在google sheet那邊新增工作表並改名'紀錄檔'
+
+2. 改server新增一個log函數
+
+    在server裡頭開新的函數,就叫做log,新增在`src/server/sheets.js`最下面
+
+    ```javascript
+    export const log = (...args) => {
+      const s = SpreadsheetApp.getActive().getSheetByName('紀錄檔')
+      s.appendRow(Array.prototype.concat(new Date(), args));
+    }
+    ```
+
+    log函數解釋:宣告一個function叫做log,並匯出;從SpreadsheetApp取得綁定的試算表,再用getSheetByName抓出工作表'紀錄檔',然後插入一列,內容是先紀錄下當下時間,後面接著列出送給log函數的所有參數
+
+3. 開放log函數給client使用
+
+    函數開好之後要對client端開放,所以改`src/server.index.ts`檔案
+
+    請在import後面加上函數名稱log,然後在後面的export中也加上log
+    ```javascript
+    import { getSheetsData, addSheet, deleteSheet, setActiveSheet, log } from './sheets';
+    ...
+    export {
+    ...
+      log,
+    };
+    ```
+    這個動作的解釋:因為每個檔案是被當作一個模組看待,所以需要先從sheet模組匯入log函數,再匯出給client才能在網頁裡頭使用。
+
+4. 改client網頁
+
+    在client端網頁有個按鈕,按了之後會顯示url,我們現在想在按了按鈕的時候寫入log
+
+    `src/client/demo-bootstrap/components/App.jsx`
+
+    因為按按鈕會改`showBtn`這個state,所以我們用`React.useEffect`去關注這個state的變化
+
+    ```jsx
+      const onShowUrlChanged = () => {
+        if (showUrl) {
+          console.log('clicked');
+          serverFunctions.log('clicked');
+        }
+      }
+
+      React.useEffect(onShowUrlChanged, [showUrl]);
+    ```
+
+    動作解釋:我們用`React.useEffect`註冊關注變化的函數onShowUrlChanged,並在關注陣列中寫上showUrl,這樣react就會在state內容改變時通知onShowUrlChanged;而我們想要當使用者按下按鈕時紀錄一下,要用if判斷showUrl是否為true(showUrl初始化沒有給值,預設為null)
+
+    *`React.useEffect`如果簡寫成useEffect,就需要在檔案前頭作import的動作*
+
+    在sheet的工作表'紀錄檔',就會看到使用者按下顯示url時的log,時間,以及文字
+    ![](./resource/clicked_log.png)
+
+### 4. 加上儲存/讀取line通知的token功能(未完待續)
+### 5. 加上傳送line的通知功能(未完待續)
+### 6. 修改界面(未完待續)
+### 6. 修正彈跳視窗方式與動畫(未完待續)
