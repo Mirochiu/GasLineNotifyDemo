@@ -201,10 +201,12 @@ export {
 | year | 幾年(西元) |
 | month | 幾月(1月給1) |
 | day-of-month | 幾日(1號給1) |
-| day-of-week | 星期幾(週2就給2) **(要使用)** |
+| day-of-week | 星期幾(週2就給2,週日給7) **(要使用)** |
 | hour | 幾點 **(要使用)** |
 | minute | 幾分 |
 | second | 幾秒 |
+
+上表資料參考[官方文件](https://developers.google.com/apps-script/guides/triggers/events)
 
 可以看到時區不是我們所在時區,所以小時也不正確,所以我們需要調整Apps Script的時區
 
@@ -215,27 +217,26 @@ export {
 改成
 `"timeZone": "Asia/Taipei",`
 
-我之前是這樣改完再發布後可得到+8的結果,不過這次寫都是給我UTC時間, 只好自己在程式裡面寫一下UTC的處理
+原本是自己寫UTC轉UTC+8,2022/10/11改成`event2date`這個函數使用`Date.UTC`處理
+
 ```javascript
-const trigger2obj = (e) => {
-  let tz = e['timezone'];
-  let hour = e['hour'];
-  let wday = e['day-of-week'];
-  if ('UTC' === tz) {
-    tz = 'UTC+8';
-    hour += 8;
-    if (hour > 24) {
-      hour -= 24;
-      wday += 1;
-      if (wday > 7) {
-        wday -= 7 + 1;
-      }
-    }
-  }
-  return {tz, hour, wday};
+const event2date = (e) => {
+  let date = new Date(Date.UTC(
+    e.year, e.month-1, e['day-of-month'],
+    e.hour, e.minute, e.second
+  ));
+  return {
+    date,
+    event: e,
+    hour: date.getHours(),
+    wday: date.getDay() == 0 ? 7 : date.getDay(),
+    year: date.getFullYear(),
+    month: date.getMonth() + 1,
+    day: date.getDate(),
+  };
 }
 ```
-上面這個trigger2obj函數的動作解釋:從e取出timezone,hour,day-of-week這幾個需要的資料;然後如果時區是UTC,也就是UTC+0,則做時區+8的調整;調整後的小時超過24就進位1天,因此wday就需要+1,如果wday大於7就是往下一週,所以要從1開始
+上面這個trigger2obj函數的動作解釋:從e取出date需要的資料;因為從先前調整測試得知Apps Script的觸發都是給UTC時間,不過在月份跟星期的部份,因為定義不同需要調整一下
 
 #### 取用開放資料
 

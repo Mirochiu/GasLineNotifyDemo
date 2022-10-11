@@ -1,22 +1,33 @@
 import { getConfig, log } from './sheets';
 import { notify } from './line';
 
-const trigger2obj = (e) => {
-  let tz = e['timezone'];
-  let hour = e['hour'];
-  let wday = e['day-of-week'];
-  if ('UTC' === tz) {
-    tz = 'UTC+8';
-    hour += 8;
-    if (hour > 24) {
-      hour -= 24 + 1;
-      wday += 1;
-      if (wday > 7) {
-        wday -= 7 + 1;
-      }
-    }
-  }
-  return {tz, hour, wday};
+// https://developers.google.com/apps-script/reference/base/weekday
+const WEEKDAYS = [
+  ScriptApp.WeekDay.MONDAY,
+  ScriptApp.WeekDay.TUESDAY,
+  ScriptApp.WeekDay.WEDNESDAY,
+  ScriptApp.WeekDay.THURSDAY,
+  ScriptApp.WeekDay.FRIDAY,
+  ScriptApp.WeekDay.SATURDAY,
+  ScriptApp.WeekDay.SUNDAY,
+];
+
+const event2date = (e) => {
+  //作一下檢驗紀錄,避免後續Apps Script平台有改變策略
+  if ('UTC' !== e.timezone) log('trigger event.timezone not utc:', e.timezone);
+  let date = new Date(Date.UTC(
+    e.year, e.month-1, e['day-of-month'],
+    e.hour, e.minute, e.second
+  ));
+  return {
+    date,
+    event: e,
+    hour: date.getHours(),
+    wday: date.getDay() == 0 ? 7 : date.getDay(),
+    year: date.getFullYear(),
+    month: date.getMonth() + 1,
+    day: date.getDate(),
+  };
 }
 
 const fetchAndFilterStockByNumber = (list) => {
@@ -33,8 +44,9 @@ const fetchAndFilterStockByNumber = (list) => {
     }));
 }
 
+//https://developers.google.com/apps-script/guides/triggers/events
 const onTriggered = (event) => {
-  const runAt = trigger2obj(event);
+  const runAt = event2date(event);
   try {
     if (runAt.wday>=6 || runAt.hour!=14) return;
     const concerned = getConfig('ConcernedStocks').split(',');
