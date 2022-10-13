@@ -44,11 +44,39 @@ const fetchAndFilterStockByNumber = (list) => {
     }));
 }
 
+const fetchHoliday = () => {
+  const res = UrlFetchApp
+    .fetch('https://www.twse.com.tw/holidaySchedule/holidaySchedule?response=open_data');
+  return Utilities.parseCsv(res.getContentText())
+    .shift() // 移除欄位名稱的那一列
+    .map(r => ({
+      name:r[0],
+      //CSV檔案內的格式是民國年月日=>XXXYYZZ
+      date:new Date(
+        1911 + parseInt(r[1].substring(0,3)),
+        parseInt(r[1].substring(3,5)),
+        parseInt(r[1].substring(5)),
+      ),
+      wday:r[2],
+      comments:r[3],
+    }));
+}
+
 //https://developers.google.com/apps-script/guides/triggers/events
 const onTriggered = (event) => {
   const runAt = event2date(event);
   try {
     if (runAt.wday>=6 || runAt.hour!=14) return;
+    const holiday = fetchHoliday();
+    const matchHoliday = holiday.find(({date}) =>
+      date.getDate()===runAt.date.getDate()
+      && date.getMonth()===runAt.date.getMonth()
+      && date.getFullYear()===runAt.date.getFullYear()
+    );
+    if (matchHoliday) {
+      log('今天是股票休假日', matchHoliday, runAt);
+      return;
+    }
     const concerned = getConfig('ConcernedStocks').split(',');
     const filtered = fetchAndFilterStockByNumber(concerned);
     if (filtered.length !== concerned.length) {
