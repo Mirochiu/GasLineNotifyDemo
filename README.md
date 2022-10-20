@@ -274,13 +274,14 @@ const fetchAndFilterStockByNumber = (list) => {
     .map(r => ({
       id:r[0],
       name:r[1],
-      openPrice:r[4],
-      closePrice:r[7],
+      openPrice: parseFloat(r[4]),
+      closePrice: parseFloat(r[7]),
     }));
 }
 ```
 
 上面這個fetchAndFilterStockByNumber函數的動作解釋:使用Apps Script的`UrlFetchApp.fetch`服務可以幫我們抓取遠端伺服器的回應資料,不過有限制資料類型以及對方伺服器需要有允許跨佔存取,因為開放資料有允許所以我們就可以直接用;接著我們使用提供的`Utilities.parseCsv`工具將回應的csv文字檔案(`res.getContentText()`)轉成程式可讀的形式,也就是陣列形式;再透過filter作過濾,map轉換成人可閱讀的物件陣列
+*2022-10-20* 新增處理Price轉換成Number類型
 
 #### 讀取設定並發送Line通知
 
@@ -299,8 +300,13 @@ const onTriggered = (event) => {
     if (filtered.length !== concerned.length) {
       log(`過濾後資料數量不吻合 f:${filtered.length} !== ${concerned.length} l:${concerned.join(',')}`);
     }
+    const priceComp = (c, o) => {
+      if (c > o) return `▲ ${(c - o).toFixed(2)}`;
+      if (o > c) return `▼ ${(o - c).toFixed(2)}`;
+      return '—';
+    };
     const msg = filtered
-      .map(r => `${r.name}(${r.id}) 開盤:${r.openPrice} 收盤:${r.closePrice}`)
+      .map(r => `${r.name}(${r.id}) 收盤:${r.closePrice} ${priceComp(r.closePrice, r.openPrice)}`)
       .join('\n');
     log(msg);
     notify(msg);
@@ -311,10 +317,74 @@ const onTriggered = (event) => {
 }
 ```
 
-onTriggered的動作解釋:onTriggered會收到Apps Script發送的event資料,我們檢驗觸發時間,如果是定好的時間,就取出我們設定好的股票號碼列表,以逗號`,`分隔,例如0050,0056;透過fetchAndFilterStockByNumber幫我們取回資料,並依照前面的號碼列表過濾所需的收盤價;然後把資料組成我們人可以看懂的訊息:'公司名1(股票號碼1) 開盤:XX.XX 收盤:YY.YY\n公司名2(股票號碼2) 開盤:XX.XX 收盤:YY.YY...',然後透過notify將這個訊息用發送到個人的Line Notify
+onTriggered的動作解釋:onTriggered會收到Apps Script發送的event資料,我們檢驗觸發時間,如果是定好的時間,就取出我們設定好的股票號碼列表,以逗號`,`分隔,例如0050,0056;透過fetchAndFilterStockByNumber幫我們取回資料,並依照前面的號碼列表過濾所需的收盤價;然後把資料組成我們人可以看懂的訊息:'公司名1(股票號碼1) 收盤:YY.YY 漲跌幅\n公司名2(股票號碼2) 收盤:YY.YY 漲跌幅\n...',然後透過notify將這個訊息用發送到個人的Line Notify
 
 收到的Line訊息會類似下圖這樣
 ![](./resource/recv-stock-msg-in-line-notify.jpg)
 
 **這裡要注意的是** 我們需要在工作表'設定檔'將ConcernedStocks的val欄位設定格式為'純文字',不然設定股票號碼時,所輸入資料可能會自動跑去數字格式,導致onTriggered處理發生錯誤,或是找不到股票號碼的問題
 ![](./resource/config-ConcernedStocks-format-in-sheet.png)
+
+#### 2022-10新增:檢查是否為休假日
+
+我們同樣使用open data API存取休假日,可透過fetchHoliday取回休息日,因為休息日是以民國年月日方式呈現yyymmdd,為了要和date比較所以要作一些處理
+
+```javascript
+const fetchHoliday = () => {
+  const res = UrlFetchApp
+    .fetch('https://www.twse.com.tw/holidaySchedule/holidaySchedule?response=open_data');
+  return Utilities.parseCsv(res.getContentText())
+    .shift() // 移除欄位名稱的那一列
+    .map(r => ({
+      name: r[0],
+      //CSV檔案內的格式是民國年月日=>XXXYYZZ
+      date: new Date(
+        1911 + parseInt(r[1].substring(0, 3)),
+        parseInt(r[1].substring(3, 5)) - 1, // 因為Date的month是從0開始,而不是1月的1開始
+        parseInt(r[1].substring(5)),
+      ),
+      wday: r[2],
+      comments: r[3],
+    }));
+}
+```
+
+這樣在主邏輯部份就能夠作簡單比較
+```javascript
+const runAt = event2date(event);
+if (runAt.wday >= 6 || runAt.hour != 14) return;
+
+const holiday = fetchHoliday();
+if (Array.isArray(holiday)) {
+  const matchHoliday = holiday.find(({ date }) =>
+    date.getDate() === runAt.date.getDate()
+    && date.getMonth() === runAt.date.getMonth()
+    && date.getFullYear() === runAt.date.getFullYear()
+  );
+  if (matchHoliday) {
+    log('今天是股票休假日', matchHoliday, runAt);
+    return;
+  }
+}
+else {
+  log(`無法取得休息日資訊`);
+  notify('無法取得休息日資訊');
+  //仍繼續執行
+}
+```
+
+#### 2022-10-20新增:從編輯器UI測試觸發時略過檢查時間機制
+
+因為編輯器UI去執行時不會給予參數event所以就只能略過時間檢查機制
+
+```javascript
+const onTriggered = (event) => {
+  try {
+    //for test or trigger from editor
+    if (event === undefined) {
+      log('施行觸發測試中...');
+      notify('施行觸發測試中...');
+    }
+    else {
+      const runAt = event2date(event);
+```
