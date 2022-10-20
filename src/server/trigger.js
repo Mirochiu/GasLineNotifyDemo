@@ -54,7 +54,7 @@ const fetchHoliday = () => {
       //CSV檔案內的格式是民國年月日=>XXXYYZZ
       date: new Date(
         1911 + parseInt(r[1].substring(0, 3)),
-        parseInt(r[1].substring(3, 5)),
+        parseInt(r[1].substring(3, 5)) - 1, // 因為Date的month是從0開始,而不是1月的1開始
         parseInt(r[1].substring(5)),
       ),
       wday: r[2],
