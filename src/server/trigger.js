@@ -12,6 +12,17 @@ const WEEKDAYS = [
   ScriptApp.WeekDay.SUNDAY,
 ];
 
+// https://developers.google.com/apps-script/guides/triggers/events#time-driven_events
+const TRA_CH_TO_TRIGGER_DAYOF_WEEKEY = {
+  '一': 1,
+  '二': 2,
+  '三': 3,
+  '四': 4,
+  '五': 5,
+  '六': 6,
+  '日': 7,
+};
+
 const event2date = (e) => {
   //作一下檢驗紀錄,避免後續Apps Script平台有改變策略
   if ('UTC' !== e.timezone) log('trigger event.timezone not utc:', e.timezone);
@@ -44,7 +55,7 @@ const fetchAndFilterStockByNumber = (list) => {
     }));
 }
 
-const fetchHoliday = () => {
+const fetchStocksClosedDays = () => {
   const res = UrlFetchApp
     .fetch('https://www.twse.com.tw/holidaySchedule/holidaySchedule?response=open_data');
   return Utilities.parseCsv(res.getContentText())
@@ -57,7 +68,7 @@ const fetchHoliday = () => {
         parseInt(r[1].substring(3, 5)) - 1, // 因為Date的month是從0開始,而不是1月的1開始
         parseInt(r[1].substring(5)),
       ),
-      wday: r[2],
+      wday: TRA_CH_TO_TRIGGER_DAYOF_WEEKEY[r[2]] || r[2],
       comments: r[3],
     }));
 }
@@ -74,21 +85,21 @@ const onTriggered = (event) => {
       const runAt = event2date(event);
       if (runAt.wday >= 6 || runAt.hour != 14) return;
 
-      const holiday = fetchHoliday();
-      if (Array.isArray(holiday)) {
-        const matchHoliday = holiday.find(({ date }) =>
+      const closedDay = fetchStocksClosedDays();
+      if (Array.isArray(closedDay)) {
+        const matched = closedDay.find(({ date }) =>
           date.getDate() === runAt.date.getDate()
           && date.getMonth() === runAt.date.getMonth()
           && date.getFullYear() === runAt.date.getFullYear()
         );
-        if (matchHoliday) {
-          log('今天是股票休假日', matchHoliday, runAt);
+        if (matched) {
+          log('今天是股票休假日', matched, runAt);
           return;
         }
       }
       else {
-        log(`無法取得休息日資訊`);
-        notify('無法取得休息日資訊');
+        log(`無法取得股票休息日資訊`);
+        notify('無法取得股票休息日資訊');
         //仍繼續執行
       }
     }
