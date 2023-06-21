@@ -16,3 +16,6 @@ dist/
 
 #secret
 .env
+
+#app script project file
+.clasp.json
