@@ -86,7 +86,7 @@ const onTriggered = (event) => {
       notify('施行觸發測試中...');
     } else {
       const runAt = event2date(event);
-      if (runAt.wday >= 6 || runAt.hour != 14) return;
+      if (runAt.wday >= 6 || runAt.hour !== 14) return;
 
       const closedDay = fetchStocksClosedDays();
       if (Array.isArray(closedDay)) {
@@ -155,4 +155,29 @@ const onTriggered = (event) => {
   }
 };
 
-export { onTriggered };
+const setupTrigger = () => {
+  const targetFn = 'onTriggered';
+
+  // 刪除舊有的觸發器（如果存在的話）
+  const triggers = ScriptApp.getProjectTriggers();
+  for (let i = 0; i < triggers.length; i += 1) {
+    if (triggers[i].getHandlerFunction() === targetFn) {
+      ScriptApp.deleteTrigger(triggers[i]);
+    }
+  }
+
+  // 設定新的觸發器
+  const date = new Date();
+  date.setHours(8);
+  date.setMinutes(0);
+  date.setSeconds(0);
+
+  ScriptApp.newTrigger(targetFn)
+    .timeBased()
+    .everyDays(1)
+    .atHour(2)
+    .nearMinute(10) // +-15mins
+    .create();
+};
+
+export { onTriggered, setupTrigger };
